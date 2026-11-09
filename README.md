@@ -2,7 +2,7 @@
 
 This repository holds the reproduction code for the paper
 
-> M. Hawarey, *Cycles with Exactly Two Amplifications in GCD-Augmented Fibonacci Recurrences* (2026).
+> M. Hawarey, *Cycles with Exactly Two Amplifications in GCD-Augmented Fibonacci Recurrences* (2026). This line will be updated once the paper is published.
 
 The recurrence is C(n) = C(n−1) + C(n−2) + gcd(C(n−1), C(n−2)). Its gcd dynamics is governed by the cofactor map
 R(α, β) = (β/g, (α+β+1)/g) with g = gcd(β, α+1). The paper shows that R has cycles with exactly two amplifications
