@@ -17,13 +17,23 @@ Parts (labels follow the paper; each part prints the numbers quoted there):
   range      Theorem 15: all integral candidates with G > L_q allowed by Lemma 13(c), q <= 36
   boundary   Section 6, boundary recovery: the single-amplification cycles (q, g) = (1, 2), (2, 3), (4, 7), q <= 20
   seeds      Section 6: iteration of R from all coprime seeds in [1, 200]^2
+  factorizations  Theorem 11, Appendix A: checks the archived file lucas_factorizations.csv (every listed prime is
+             proved prime, every product is L_q) and prints its summary
+  further    Proposition 17: restricted search (Corollary 12) at all 30 admissible periods in (360, 716], with long
+             multipliers built from the primitive primes listed in lucas_factorizations.csv; no factoring is needed
+
+Version 1.1.0 adds the parts 'factorizations' and 'further' and the further cycles of Proposition 17 (list CYC_NEW),
+prints the long multipliers in full with their prime factors (part 'cycles', Table A1), and prints the tallies of the
+local conditions (part 'census'). The parts of version 1.0.0 and their results are unchanged.
+Data files: lucas_factorizations.csv, table1_full.csv.
 
 Usage:  python reproduce.py --quick          about 10 s: census q <= 120, extended q <= 411, range q <= 20, seeds <= 60
-        python reproduce.py                  full: about 25 min plus about 1 hour for 'range'
+        python reproduce.py                  full: about 30 min plus about 1 hour for 'range'
         python reproduce.py cycles covering  selected parts;  --tlim=SECONDS sets the factoring limit (default 90)
-Requirements: Python >= 3.10; cypari2 (pip install cypari2) for 'census', 'extended' and the primality column of
-'cycles'. All arithmetic is exact. License: MIT."""
-import sys, time, multiprocessing as mp
+Requirements: Python >= 3.10; cypari2 (pip install cypari2) for 'census', 'extended', 'factorizations' and the
+primality and factor columns of 'cycles'. Primality is always proved with PARI's isprime (flag 0: BPSW test, then a
+proof by the p - 1 test or APR-CL). All arithmetic is exact. License: MIT."""
+import sys, os, csv, time, multiprocessing as mp
 from math import gcd, isqrt, prod
 from itertools import product
 from collections import Counter
@@ -52,7 +62,8 @@ def pisano(r):
         a, b, k = b, (a + b) % r, k + 1
         if (a, b) == (0, 1): return k
 PI = {r: pisano(r) for r in (2, 3, 5, 7)}                 # 3, 8, 20, 16
-SMALL = prod((2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47))
+SMALLP = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47)
+SMALL = prod(SMALLP)
 
 def XY(q1, q2, g1, g2):
     """Lemma 2: golden coordinates (X, Y) after the first / second amplification, or None if not integral."""
@@ -114,12 +125,57 @@ def pari():
         import cypari2; p = cypari2.Pari(); p.allocatemem(2 * 10**9, silent=True); _P.append(p)
     return _P[0]
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+def read_factorizations():
+    """lucas_factorizations.csv -> {q: (status, [(p, e), ...], [composite cofactors])}."""
+    out = {}
+    with open(os.path.join(HERE, "lucas_factorizations.csv")) as fi:
+        for row in csv.DictReader(fi):
+            pe = [(int(t.split("^")[0]), int(t.split("^")[1]) if "^" in t else 1) for t in row["prime_factors"].split()]
+            out[int(row["q"])] = (row["status"], pe, [int(c) for c in row["composite_cofactors"].split()])
+    return out
+def fmt_factors(n, primes, comp=()):
+    """n as a product of the given primes; a factor left over must be the product of the composite cofactors 'comp'
+    of L_q that are not yet factored, and is printed in square brackets."""
+    parts = []
+    for p in sorted(primes):
+        e = 0
+        while n % p == 0: n //= p; e += 1
+        if e: parts.append(str(p) if e == 1 else f"{p}^{e}")
+    assert n == 1 or n == prod(comp)
+    return " * ".join(parts + ([f"[{n}]"] if n > 1 else []))
+
 CYC = [(188, 2, 18049), (236, 5, 39299585040574991646429560062415143), (236, 6, 2871307447985313921708888731089),
        (244, 5, 25553609562771866971783), (244, 6, 52471477541626010209), (268, 2, 27394199849089),
        (364, 5, 1607900243355223), (364, 5, 112739025441223), (364, 5, 2167970958120041964878941094897400376601026388806528443943),
        (532, 5, 1963935786170995308172874586609385961733047712487738064669834056498633369360565230903),
        (692, 2, 25734139343360815502009252332479063945286304136739969), (692, 6, 365418564450128053103699216003150641416769),
        (692, 6, 1627640193104185047895754236771619530198929553121521288865608772205585604958397908108746641186763652209)]
+CYC_NEW = [(556, 1, 202636238996806404322047320340239815186169623),
+           (604, 2, 1146134421052077514508781114144769),
+           (652, 1, 6862459992387646640985182801732832691615891330831600249544889505596968405523597280183),
+           (652, 1, 728370715811779241086035320509543720676852318364909874541933887807304317633538100629222769604183),
+           (652, 2, 152218087412280529),
+           (652, 2, 4682215972495649106931635525559578959733529165345139935180000639204609),
+           (652, 2, 496963042881861649021823347258779166653551663461618759325372304819352370253856609),
+           (652, 2, 11400762099581095348048392294330704463142437505909226373535266477471982500660997249),
+           (652, 2, 9987854582061901661632075252066156397151472306402969825472725248541480129645758571969),
+           (652, 6, 496963042881861649021823347258779166653551663461618759325372304819352370253856609),
+           (652, 6, 9987854582061901661632075252066156397151472306402969825472725248541480129645758571969),
+           (652, 6, 17075645976599186234679196392353322131092635154535015786655910096246976487766358311405972398498459187676528709280887649)]     # Proposition 17(a), found in the revision
+def verify_cycle(q, s, h):
+    """Direct iteration of R from sigma*(q, s, h): least period q, multipliers h at step q - s - 1 and L_q/h at step
+    q - 1, no other amplification; the content test of Lemma 3 must agree. Returns sigma*."""
+    g = luc(q) // h; assert luc(q) % h == 0
+    sig = anchor(q, s, h); st, amps, minb = sig, [], sig[1]
+    for j in range(q):
+        st, m = R(st)
+        if m > 1: amps.append((j, m))
+        assert j == q - 1 or st != sig
+        minb = min(minb, st[1])
+    assert st == sig and amps == [(q - s - 1, h), (q - 1, g)] and first_failure(s, q - s, g, h) is None
+    assert minb == sig[1] > fib(2*q + 2)
+    return sig
 def anchor(q, s, h):
     return (fib(2*q+1) + (h-1)*fib(q+s+1) - h*fib(q+1), fib(2*q+2) + (h-1)*fib(q+s+2) - h*fib(q+2))
 def part_cycles():
@@ -128,17 +184,29 @@ def part_cycles():
     assert luc(188) == 7 * 18049 * 100769 * 153037630649666194962091443041
     print("Table 1 (q | s | h | h prime | digits of L_q/h | digits of beta*):")
     for q, s, h in CYC:
-        g = luc(q) // h; assert luc(q) % h == 0
-        sig = anchor(q, s, h); st, amps, minb = sig, [], sig[1]
-        for j in range(q):
-            st, m = R(st)
-            if m > 1: amps.append((j, m))
-            assert j == q - 1 or st != sig
-            minb = min(minb, st[1])
-        assert st == sig and amps == [(q - s - 1, h), (q - 1, g)] and first_failure(s, q - s, g, h) is None
-        assert minb == sig[1] > fib(2*q + 2)
+        g = luc(q) // h; sig = verify_cycle(q, s, h)
         print(f"  {q} | {s} | {h if len(str(h)) <= 40 else f'({len(str(h))} digits)'} | {isprime(h)} | {len(str(g))} | {len(str(sig[1]))}")
     print("  period-188 anchor state (Theorem 7):", anchor(*CYC[0]))
+    for q, s, h in CYC_NEW:
+        sig = verify_cycle(q, s, h)
+        print(f"Proposition 17(a): further cycle (q, s, h) = ({q}, {s}, {h}) verified (least period {q}, exactly two "
+              f"amplifications, multipliers h and L_q/h); h prime: {isprime(h)}; digits of L_q/h: {len(str(luc(q) // h))}; "
+              f"digits of beta*: {len(str(sig[1]))}")
+    try: FA = read_factorizations()
+    except OSError: FA = {}
+    print("Table A1 (row | q | s | h | L_q/h | prime factors of h | prime factors of L_q/h; a factor in square brackets "
+          "is a composite cofactor of L_q that is not yet factored):")
+    rows = []
+    for i, (q, s, h) in enumerate(CYC + CYC_NEW, 1):
+        g = luc(q) // h
+        primes = [p for p, _ in FA[q][1]] if q in FA else [int(p) for p in pari().factor(luc(q))[0]]
+        assert all(isprime(p) is not False for p in primes)
+        fh, fg = fmt_factors(h, primes), fmt_factors(g, primes, FA[q][2] if q in FA else ())
+        rows.append((i, q, s, h, g, fh, fg, fh.count("*") + 1)); print(f"  {i} | {q} | {s} | {h} | {g} | {fh} | {fg}")
+    with open("table1_full.csv", "w") as fo:
+        fo.write("row,q,s,h,Lq_over_h,prime_factors_of_h,prime_factors_of_Lq_over_h\n")
+        fo.writelines(f"{i},{q},{s},{h},{g},{fh},{fg}\n" for i, q, s, h, g, fh, fg, _ in rows)
+    print(f"  number of prime factors of h, rows 1-{len(rows)}: {[r[7] for r in rows]}; table1_full.csv written")
     print(f"cycles: {len(CYC)} verified (least period q, exactly two amplifications, multipliers h and L_q/h); "
           f"every state has beta > F_(2q+2) >= F_378 = {fib(378):.3e} (Corollary 12)")
 
@@ -162,10 +230,11 @@ def part_covering():
 
 def part_census(QC):
     P = pari(); tot, kinds, loc, gen, rechk, rows, t0 = 0, Counter(), 0, [], 0, [], time.time()
+    locp, lpf, allp = Counter(), Counter(), set()
     for q in range(2, QC + 1, 2):
         Lq = luc(q); f = P.factor(Lq); ps = [int(p) for p in f[0]]; es = [int(e) for e in f[1]]
         assert prod(p**e for p, e in zip(ps, es)) == Lq and all(bool(P.isprime(p)) for p in ps)
-        divs = [1]
+        allp.update(ps); divs = [1]
         for p, e in zip(ps, es): divs = [d * p**k for d in divs for k in range(e + 1)]
         divs.sort(); n = sym = lq = gq = 0
         for g1 in divs:
@@ -176,12 +245,13 @@ def part_census(QC):
                 if (q1, g1) > (q2, g2): continue
                 n += 1; sym += (q1, g1) == (q2, g2); tot += 1
                 X, Y = XY(q1, q2, g1, g2)
-                lq += all(local_ok(r, q, q1, q2, g1, g2) for r in PI)
+                fl = next((r for r in PI if not local_ok(r, q, q1, q2, g1, g2)), 0); lq += fl == 0; locp[fl] += 1
                 fc = first_content(X, Y, q1, q2)
                 if fc is None:
                     assert X != Y and direct(Y, q1, q2, g1, g2); gen.append((q, min(q1, q2))); gq += 1; rechk += 1
                     continue
                 side, i, c = fc
+                lpf[next((p for p in SMALLP if c % p == 0), 99)] += 1
                 kinds["start not coprime" if (side, i) == ("Y", 0) else "larger multiplier" if (side, i) == ("X", 0)
                       else "early segment 1" if side == "Y" else "early segment 2"] += 1
                 if gcd(c, SMALL) == 1 or n % 2000 == 0:
@@ -193,6 +263,11 @@ def part_census(QC):
     print(f"Theorem 11: G = L_q, even q <= {QC}: {tot:,} patterns; first failing condition {dict(kinds)}; "
           f"{loc} local survivors mod 2, 3, 5, 7 at q = {[r[0] for r in rows if r[2]]}; {len(gen)} cycles (q, s): {gen}; "
           f"{rechk:,} patterns re-checked by direct iteration; figure1_data.csv written  [{time.time() - t0:.0f} s]")
+    print(f"  least prime among 2, 3, 5, 7 whose local condition fails: { {r: locp[r] for r in PI} }; none: {locp[0]}")
+    print(f"  least prime factor of the first failing content: { {p: lpf[p] for p in (2, 3, 5, 7)} }; "
+          f"11 to 47: {sum(lpf[p] for p in SMALLP[4:])}; above 47: {lpf[99]}")
+    print(f"  factorizations: {QC // 2} Lucas numbers, {len(allp)} distinct primes, each proved prime (PARI isprime); "
+          f"the largest has {len(str(max(allp)))} digits")
 
 def _factor(n, conn):
     import cypari2; p = cypari2.Pari(); p.allocatemem(10**9, silent=True); f = p.factor(n)
@@ -239,6 +314,43 @@ def part_extended(QMAX, TLIM):
         if complete: done.append(q)
     print(f"Theorem 11: 360 < q <= {QMAX}, q = 4, 20 mod 24: list complete for q = {done} ({len(done)} periods; "
           f"factoring limit {TLIM} s); cycles (q, s, h): {found}  [{time.time() - t0:.0f} s]")
+
+def part_factorizations():
+    P = pari(); FA = read_factorizations(); t0 = time.time(); allp, part = set(), []
+    for q, (status, pe, comp) in sorted(FA.items()):
+        assert prod(p**e for p, e in pe) * prod(comp) == luc(q), q
+        assert all(bool(P.isprime(p)) for p, _ in pe), q
+        assert all(c > 1 and not bool(P.ispseudoprime(c)) for c in comp) and (status == "complete") == (not comp), q
+        allp.update(p for p, _ in pe)
+        if comp: part.append((q, [len(str(c)) for c in comp]))
+    ev = [q for q in FA if q <= 360]; ad = [q for q in FA if q > 360]
+    assert ev == list(range(2, 361, 2)) and ad == [q for q in range(362, 717) if q % 24 in (4, 20)]
+    print(f"Theorem 11, Appendix A: lucas_factorizations.csv holds L_q for the {len(ev)} even q <= 360 and the {len(ad)} "
+          f"periods q = 4, 20 mod 24 in (360, 716]; {len(FA) - len(part)} factorizations are complete; {len(allp)} distinct "
+          f"primes, each proved prime (PARI isprime), the largest with {len(str(max(allp)))} digits; every product equals "
+          f"L_q. Not fully factored (q, digits of the composite cofactors): {part}  [{time.time() - t0:.0f} s]")
+
+def part_further():
+    FA = read_factorizations(); t0, comp_q, part, found, nc, npp, npc = time.time(), [], [], [], 0, 0, 0
+    for q, (status, pe, comp) in sorted(FA.items()):
+        if q <= 360: continue
+        Lq = luc(q); prim = [p for p, _ in pe if p != 2 and order_is_4q(p, q)]; hs = [1]
+        for p in prim:
+            e, t = 0, Lq
+            while t % p == 0: t //= p; e += 1
+            hs = [h * p**k for h in hs for k in range(e + 1)]
+        n = 0
+        for h in (h for h in hs if h >= 3):
+            for s in (1, 2, 5, 6):
+                n += 1
+                if first_failure(s, q - s, Lq // h, h) is None: verify_cycle(q, s, h); found.append((q, s, h))
+        if status == "complete": comp_q.append(q); nc += n
+        else: part.append((q, len(prim), n, [len(str(c)) for c in comp])); npp += len(prim); npc += n
+    assert sorted(found) == sorted(c for c in CYC + CYC_NEW if c[0] > 360)
+    print(f"Proposition 17: admissible periods in (360, 716]: {len(comp_q)} fully factored, q = {comp_q}, with {nc} candidates "
+          f"(h, s); {len(part)} not fully factored, as (q, known primitive primes, candidates, digits of composite cofactors): "
+          f"{part}, in total {npp} primes and {npc} candidates; cycles found (q, s, h): {found}; these are the cycles of "
+          f"Table 1 above period 360 and the further cycles of Proposition 17(a): True  [{time.time() - t0:.0f} s]")
 
 def part_t2family():
     for m in range(2, 101, 2):
@@ -316,6 +428,7 @@ if __name__ == "__main__":
     run = {"cycles": part_cycles, "covering": part_covering, "census": lambda: part_census(120 if quick else 360),
            "extended": lambda: part_extended(411 if quick else 716, tl), "t2family": part_t2family,
            "range": lambda: part_range(20 if quick else 36), "boundary": part_boundary,
-           "seeds": lambda: part_seeds(60 if quick else 200)}
+           "seeds": lambda: part_seeds(60 if quick else 200), "factorizations": part_factorizations,
+           "further": part_further}
     for p in args or list(run):
         run[p]()
