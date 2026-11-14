@@ -6,21 +6,22 @@ authors:
   - family-names: Hawarey
     given-names: Mosab
     affiliation: Geospatial Research
-version: 1.1.0
+version: 1.1.1
 date-released: 2026-11-14
 license: MIT
 repository-code: "https://github.com/mhawarey/two-amplification-cycles-gcd-fibonacci"
 abstract: >-
   Reproduction code for the paper "Cycles with Exactly Two Amplifications in
   GCD-Augmented Fibonacci Recurrences" by Mosab Hawarey (2026). The script
-  verifies the known cycles of the cofactor map with exactly two
-  amplifications (the thirteen of Table 1 and the twelve of Proposition 17)
-  from their defining triples, and reproduces the residue
-  covering modulo 2, 3, 5 and 7, the census of all patterns with cycle
-  multiplier L_q, the exclusion of cycles with G > L_q for periods up to 36,
-  and the census of small seeds. Version 1.1.0 adds the factorizations of the
-  Lucas numbers used in the paper, with every prime factor proved prime, and
-  the thirteen cycles in full.
+  verifies the twenty-five known cycles of the cofactor map with exactly two
+  amplifications (Table 1 of the paper) from their defining triples, and
+  reproduces the residue covering modulo 2, 3, 5 and 7, the census of all
+  patterns with cycle multiplier L_q, the exclusion of cycles with G > L_q
+  for periods up to 36, and the census of small seeds. The archive includes
+  the factorizations of the Lucas numbers used in the paper, with every prime
+  factor proved prime, and the twenty-five cycles in full. Version 1.1.1
+  differs from version 1.1.0 only in labels, which now follow the numbering
+  of the paper (Theorems 7 and 11).
 keywords:
   - gcd-augmented Fibonacci recurrence
   - cofactor map

@@ -19,12 +19,15 @@ Parts (labels follow the paper; each part prints the numbers quoted there):
   seeds      Section 6: iteration of R from all coprime seeds in [1, 200]^2
   factorizations  Theorem 11, Appendix A: checks the archived file lucas_factorizations.csv (every listed prime is
              proved prime, every product is L_q) and prints its summary
-  further    Proposition 17: restricted search (Corollary 12) at all 30 admissible periods in (360, 716], with long
+  further    Theorem 11 (360 < q <= 716): restricted search (Corollary 12) at all 30 admissible periods, with long
              multipliers built from the primitive primes listed in lucas_factorizations.csv; no factoring is needed
 
-Version 1.1.0 adds the parts 'factorizations' and 'further' and the further cycles of Proposition 17 (list CYC_NEW),
+Version 1.1.0 adds the parts 'factorizations' and 'further' and rows 14-25 of Table 1 (list CYC_NEW),
 prints the long multipliers in full with their prime factors (part 'cycles', Table A1), and prints the tallies of the
 local conditions (part 'census'). The parts of version 1.0.0 and their results are unchanged.
+Version 1.1.1 changes labels only: rows 14-25 of Table 1 and the search above period 360 carried the draft label
+'Proposition 17' in version 1.1.0; in the paper they are part of Theorems 7 and 11. No computation, number or data
+file differs from version 1.1.0.
 Data files: lucas_factorizations.csv, table1_full.csv.
 
 Usage:  python reproduce.py --quick          about 10 s: census q <= 120, extended q <= 411, range q <= 20, seeds <= 60
@@ -162,7 +165,7 @@ CYC_NEW = [(556, 1, 202636238996806404322047320340239815186169623),
            (652, 2, 9987854582061901661632075252066156397151472306402969825472725248541480129645758571969),
            (652, 6, 496963042881861649021823347258779166653551663461618759325372304819352370253856609),
            (652, 6, 9987854582061901661632075252066156397151472306402969825472725248541480129645758571969),
-           (652, 6, 17075645976599186234679196392353322131092635154535015786655910096246976487766358311405972398498459187676528709280887649)]     # Proposition 17(a), found in the revision
+           (652, 6, 17075645976599186234679196392353322131092635154535015786655910096246976487766358311405972398498459187676528709280887649)]     # rows 14-25 of Table 1, found in the revision
 def verify_cycle(q, s, h):
     """Direct iteration of R from sigma*(q, s, h): least period q, multipliers h at step q - s - 1 and L_q/h at step
     q - 1, no other amplification; the content test of Lemma 3 must agree. Returns sigma*."""
@@ -182,14 +185,14 @@ def part_cycles():
     try: P = pari(); isprime = lambda n: bool(P.isprime(n))
     except ImportError: isprime = lambda n: "?"
     assert luc(188) == 7 * 18049 * 100769 * 153037630649666194962091443041
-    print("Table 1 (q | s | h | h prime | digits of L_q/h | digits of beta*):")
+    print("Table 1, rows 1-13 (q | s | h | h prime | digits of L_q/h | digits of beta*):")
     for q, s, h in CYC:
         g = luc(q) // h; sig = verify_cycle(q, s, h)
         print(f"  {q} | {s} | {h if len(str(h)) <= 40 else f'({len(str(h))} digits)'} | {isprime(h)} | {len(str(g))} | {len(str(sig[1]))}")
     print("  period-188 anchor state (Theorem 7):", anchor(*CYC[0]))
-    for q, s, h in CYC_NEW:
+    for row, (q, s, h) in enumerate(CYC_NEW, len(CYC) + 1):
         sig = verify_cycle(q, s, h)
-        print(f"Proposition 17(a): further cycle (q, s, h) = ({q}, {s}, {h}) verified (least period {q}, exactly two "
+        print(f"Table 1, row {row} (Theorem 7): cycle (q, s, h) = ({q}, {s}, {h}) verified (least period {q}, exactly two "
               f"amplifications, multipliers h and L_q/h); h prime: {isprime(h)}; digits of L_q/h: {len(str(luc(q) // h))}; "
               f"digits of beta*: {len(str(sig[1]))}")
     try: FA = read_factorizations()
@@ -347,10 +350,10 @@ def part_further():
         if status == "complete": comp_q.append(q); nc += n
         else: part.append((q, len(prim), n, [len(str(c)) for c in comp])); npp += len(prim); npc += n
     assert sorted(found) == sorted(c for c in CYC + CYC_NEW if c[0] > 360)
-    print(f"Proposition 17: admissible periods in (360, 716]: {len(comp_q)} fully factored, q = {comp_q}, with {nc} candidates "
+    print(f"Theorem 11 (360 < q <= 716): admissible periods: {len(comp_q)} fully factored, q = {comp_q}, with {nc} candidates "
           f"(h, s); {len(part)} not fully factored, as (q, known primitive primes, candidates, digits of composite cofactors): "
-          f"{part}, in total {npp} primes and {npc} candidates; cycles found (q, s, h): {found}; these are the cycles of "
-          f"Table 1 above period 360 and the further cycles of Proposition 17(a): True  [{time.time() - t0:.0f} s]")
+          f"{part}, in total {npp} primes and {npc} candidates; cycles found (q, s, h): {found}; these are rows "
+          f"7-25 of Table 1: True  [{time.time() - t0:.0f} s]")
 
 def part_t2family():
     for m in range(2, 101, 2):
